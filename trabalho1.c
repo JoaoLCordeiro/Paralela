@@ -4,6 +4,23 @@
 #define MAX_THREADS 64
 
 pthread_t vThread[MAX_THREADS];
+pthread_barrier_t barreiraThread;
+
+void PrefixSumPart (void* args){
+	int		comeco	= (int)  args[0];
+	int		fim		= (int)  args[1];
+	int*	vetor	= (int*) args[2];
+	int		max		= vetor[comeco];
+
+	for (i = comeco+1 , i < fim , i++){
+		vetor[i] += vetor[i-1];
+
+		if (vetor[i] > max)
+			max = vetor[i];
+	}
+
+	*(args[3]) = max;
+}
 
 int* PthPrefixSum (int* vEntrada, int nTotalElements, int nThreads){
 	//cria um vetor maximo e um vetor resultante
@@ -11,11 +28,18 @@ int* PthPrefixSum (int* vEntrada, int nTotalElements, int nThreads){
 	int* vMaximos	= malloc (nThreads*sizeof(int));
 
 	//laço que cria as threads que fazem a soma parcial e retornam o máximo daquela area em um vetor de maximos
-	for (int i = 1 ; i <= nTotalElements ; i++){
+	for (int i = 0 ; i < nTotalElements ; i++){
+		void* argumentos = malloc (3 * sizeof(int));
+		argumentos[0] = i * (nTotalElements / nThreads);				//comeco
+		argumentos[1] = argumentos[0] + (nTotalElements / nThreads);	//fim
+		argumentos[2] = vEntrada;
+		argumentos[3] = &(vMaximos[i]);
 
+		pthread_create (vThread[i], NULL, PrefixSumPart, argumentos);
 	}
 
 	//espera as threads fazendo a soma...
+	
 
 	//calcula a soma de prefixos dos maximos
 
