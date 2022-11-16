@@ -30,6 +30,8 @@ void PrefixSumPart (long int* argum){
 	long int*	vetorE	= (long int*) argum[2];
 	long int*	vetorS	= (long int*) argum[3];
 
+	fprintf (stdout, "Thread com comeco em %ld e fim em %ld\n", comeco, fim);
+
 	//faz a soma de prefixos na area desejada
 	vetorS[comeco] = vetorE[comeco];
 	for (int i = comeco+1 ; i < fim ; i++){
@@ -37,7 +39,7 @@ void PrefixSumPart (long int* argum){
 	}
 
 	//coloca o maximo nessa posicao
-	*((long int *) argum[4]) = vetorE[fim-1];
+	*((long int *) argum[4]) = vetorS[fim-1];
 
 	//no fim, libera o vetor de argumentos
 	free (argum);
@@ -72,7 +74,7 @@ long int* PthPrefixSum (long int* vEntrada, int nTotalElements, int nThreads){
 
 	//laço que cria as threads que fazem a soma parcial e retornam o máximo daquela area em um vetor de maximos
 	for (int i = 0 ; i < nThreads ; i++){
-		long int* argumentos = malloc (4 * sizeof(long int));
+		long int* argumentos = malloc (5 * sizeof(long int));
 		argumentos[0] = i * (nTotalElements / nThreads);				//comeco
 		argumentos[1] = argumentos[0] + (nTotalElements / nThreads);	//fim
 		argumentos[2] = (long int) vEntrada;
@@ -100,7 +102,7 @@ long int* PthPrefixSum (long int* vEntrada, int nTotalElements, int nThreads){
 	pthread_barrier_init(&barreiraThread, NULL, nThreads+1);
 	//soma paralelamente as somas de prefixos de maximos nas partes
 	for (int i = 0 ; i < nThreads ; i++){
-		long int* argumentos = malloc (4 * sizeof(long int));
+		long int* argumentos = malloc (5 * sizeof(long int));
 		argumentos[0] = i * (nTotalElements / nThreads);				//comeco
 		argumentos[1] = argumentos[0] + (nTotalElements / nThreads);	//fim
 		argumentos[2] = i;
@@ -116,12 +118,20 @@ long int* PthPrefixSum (long int* vEntrada, int nTotalElements, int nThreads){
 	#ifdef DEBUGPRINT
 
 	fprintf(stdout, "\nvMaximos:\n");
-	imprimeVetor (vMaximos, nTotalElements);
+	imprimeVetor (vMaximos, nThreads);
 
 	#endif
 
 	//retorna o vetor resultante
 	return vSaida;
+}
+
+int verifica_corretude(long int* OutputVector, int nTotalElements){
+	for (int i = 1 ; i < nTotalElements ; i++)
+		if (OutputVector[i] != OutputVector[i-1] + i + 1)
+			return 0;
+
+	return 1;
 }
 
 int main (int argc, char *argv[]){
@@ -154,11 +164,11 @@ int main (int argc, char *argv[]){
 
 	chrono_stop (&chronoThreads);
 
-	double tempo_segundos 	= (double) chrono_gettotal (&chronoThreads) / ((double) (1000 * 1000 * 1000));
-	double op_sec			= tempo_segundos / nTotalElements;
+	double tempo 	= (double) chrono_gettotal (&chronoThreads);
+	double op		= tempo / nTotalElements;
 
-	fprintf(stdout, "Tempo total:	%lf s\n", tempo_segundos);
-	fprintf(stdout, "OPS:		%lf OP/s\n", op_sec);
+	fprintf(stdout, "Tempo total:	%lf nanosecs\n", tempo);
+	fprintf(stdout, "OPS:		%lf OP/nanosecs\n", op);
 	
 	#ifdef DEBUGPRINT
 
@@ -168,6 +178,11 @@ int main (int argc, char *argv[]){
 	imprimeVetor (OutputVector, nTotalElements);
 
 	#endif
+
+	if (verifica_corretude(OutputVector, nTotalElements))
+		fprintf (stdout, "ta certo lol\n");
+	else
+		fprintf (stdout, "rapaz...\n");
 
 	return 0;
 }
