@@ -140,7 +140,8 @@ int main (int argc, char *argv[]){
 
 	long int *InputVector = malloc (nTotalElements*sizeof(long int));
 
-	//gera o vetor	
+	//gera o vetor
+	InputVector[0] = 1;
 	for( int i=0; i<nTotalElements ; i++ )
 		InputVector[i] = i+1;
 
