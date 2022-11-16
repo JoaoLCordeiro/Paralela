@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #include <pthread.h>
 
+#include "chrono.c"
+
+//#define DEBUGPRINT
 #define MAX_THREADS 64
 
 pthread_t vThread[MAX_THREADS];
@@ -26,26 +29,20 @@ void PrefixSumPart (long int* argum){
 	long int	fim		= argum[1];
 	long int*	vetorE	= (long int*) argum[2];
 	long int*	vetorS	= (long int*) argum[3];
-	long int	max		= vetorE[comeco];
 
 	//faz a soma de prefixos na area desejada
-
 	vetorS[comeco] = vetorE[comeco];
 	for (int i = comeco+1 ; i < fim ; i++){
 		vetorS[i] = vetorE[i] + vetorS[i-1];
-
-		if (vetorS[i] > max)
-			max = vetorS[i];
 	}
 
 	//coloca o maximo nessa posicao
-	*((long int *) argum[4]) = max;
+	*((long int *) argum[4]) = vetorE[fim-1];
 
 	//no fim, libera o vetor de argumentos
 	free (argum);
 
 	pthread_barrier_wait(&barreiraThread);
-	return;
 }
 
 void sumMaxPrefix (long int* argum){
@@ -60,7 +57,8 @@ void sumMaxPrefix (long int* argum){
 		for (int posicao = comeco ; posicao < fim ; posicao++)
 			vetorS[posicao] += vMax[thread-1];
 
-	fprintf(stdout, "Terminou a thread das somas com comeco em %ld\n", comeco);
+	free(argum);
+	
 	pthread_barrier_wait(&barreiraThread);
 }
 
@@ -69,7 +67,8 @@ long int* PthPrefixSum (long int* vEntrada, int nTotalElements, int nThreads){
 	long int* vSaida	= malloc (nTotalElements*sizeof(long int));
 	long int* vMaximos	= malloc (nThreads*sizeof(long int));
 
-	pthread_barrier_init(&barreiraThread, NULL, nThreads);
+	//nThreads + 1 = threads + main
+	pthread_barrier_init(&barreiraThread, NULL, nThreads+1);
 
 	//laço que cria as threads que fazem a soma parcial e retornam o máximo daquela area em um vetor de maximos
 	for (int i = 0 ; i < nThreads ; i++){
@@ -80,24 +79,25 @@ long int* PthPrefixSum (long int* vEntrada, int nTotalElements, int nThreads){
 		argumentos[3] = (long int) vSaida;
 		argumentos[4] = (long int) &(vMaximos[i]);
 
-		fprintf (stdout, "Criando a função com comeco em %ld\n", argumentos[0]);
 		pthread_create (&vThread[i], NULL, PrefixSumPart, (void *) argumentos);
-		fprintf (stdout, "Criou a função com comeco em %ld\n", argumentos[0]);
 	}
 
 	//espera as threads fazendo a soma...
-	fprintf(stdout, "Esperando as %d threads...\n", nThreads);
 	pthread_barrier_wait(&barreiraThread);
 	pthread_barrier_destroy(&barreiraThread);
-	fprintf(stdout, "Esperou e destruiu :)\n");
 
 	//calcula a soma de prefixos dos maximos
 	sumMax (vMaximos, nThreads);
 
+	#ifdef DEBUGPRINT
+
 	fprintf(stdout, "\nOutput antes da soma dos max:\n");
 	imprimeVetor (vSaida, nTotalElements);
 
-	pthread_barrier_init(&barreiraThread, NULL, nThreads);
+	#endif
+
+	//nThreads + 1 = threads + main
+	pthread_barrier_init(&barreiraThread, NULL, nThreads+1);
 	//soma paralelamente as somas de prefixos de maximos nas partes
 	for (int i = 0 ; i < nThreads ; i++){
 		long int* argumentos = malloc (4 * sizeof(long int));
@@ -107,18 +107,18 @@ long int* PthPrefixSum (long int* vEntrada, int nTotalElements, int nThreads){
 		argumentos[3] = (long int) vSaida;
 		argumentos[4] = (long int) vMaximos;
 
-		fprintf (stdout, "Criando a função com comeco em %ld\n", argumentos[0]);
 		pthread_create (&vThread[i+nThreads], NULL, sumMaxPrefix, (void *) argumentos);
-		fprintf (stdout, "Criou a função com comeco em %ld\n", argumentos[0]);
 	}
 
-	fprintf(stdout, "Esperando as %d threads...\n", nThreads);
 	pthread_barrier_wait(&barreiraThread);
 	pthread_barrier_destroy(&barreiraThread);
-	fprintf(stdout, "Esperou e destruiu :)\n");
+
+	#ifdef DEBUGPRINT
 
 	fprintf(stdout, "\nvMaximos:\n");
 	imprimeVetor (vMaximos, nTotalElements);
+
+	#endif
 
 	//retorna o vetor resultante
 	return vSaida;
@@ -135,8 +135,7 @@ int main (int argc, char *argv[]){
 	int nThreads		= atoi(argv[2]);
 
 	//correcao de erros
-	fprintf (stdout, "Argumentos: %d	%d\n", nTotalElements, nThreads);
-	fprintf (stdout, "Tamanhos: %ld	%ld\n", sizeof(long int), sizeof(long int *));
+	fprintf (stdout, "Rodando: vetor de %d elementos com %d threads\n", nTotalElements, nThreads);
 
 	long int *InputVector = malloc (nTotalElements*sizeof(long int));
 
@@ -145,12 +144,30 @@ int main (int argc, char *argv[]){
 	for( int i=0; i<nTotalElements ; i++ )
 		InputVector[i] = i+1;
 
+	chronometer_t chronoThreads;
+	chrono_reset (&chronoThreads);
+
+	chrono_start (&chronoThreads);
+
 	//vetor resultante
 	long int *OutputVector = PthPrefixSum (InputVector, nTotalElements, nThreads);
+
+	chrono_stop (&chronoThreads);
+
+	double tempo_segundos 	= (double) chrono_gettotal (&chronoThreads) / ((double) (1000 * 1000 * 1000));
+	double op_sec			= tempo_segundos / nTotalElements;
+
+	fprintf(stdout, "Tempo total:	%lf s\n", tempo_segundos);
+	fprintf(stdout, "OPS:		%lf OP/s\n", op_sec);
+	
+	#ifdef DEBUGPRINT
 
 	fprintf(stdout, "\nInput:\n");
 	imprimeVetor (InputVector, nTotalElements);
 	fprintf(stdout, "\nOutput:\n");
 	imprimeVetor (OutputVector, nTotalElements);
+
+	#endif
+
 	return 0;
 }
