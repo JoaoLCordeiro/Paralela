@@ -10,14 +10,14 @@
 pthread_t vThread[MAX_THREADS];
 pthread_barrier_t barreiraThread;
 
-void imprimeVetor (long int *vetor, int n){
+void imprimeVetor (long int *vetor, long int n){
 	fprintf(stdout, "Vetor:	");
 	for (int i = 0 ; i < n ; i++)
 		fprintf(stdout, " %ld", vetor[i]);
 	fprintf(stdout, "\n");
 }
 
-void sumMax (long int* vMax, int elementos){
+void sumMax (long int* vMax, long int elementos){
 	for (int i = 1 ; i < elementos ; i++)
 		vMax[i] += vMax[i-1];
 }
@@ -29,8 +29,6 @@ void PrefixSumPart (long int* argum){
 	long int	fim		= argum[1];
 	long int*	vetorE	= (long int*) argum[2];
 	long int*	vetorS	= (long int*) argum[3];
-
-	fprintf (stdout, "Thread com comeco em %ld e fim em %ld\n", comeco, fim);
 
 	//faz a soma de prefixos na area desejada
 	vetorS[comeco] = vetorE[comeco];
@@ -64,7 +62,7 @@ void sumMaxPrefix (long int* argum){
 	pthread_barrier_wait(&barreiraThread);
 }
 
-long int* PthPrefixSum (long int* vEntrada, int nTotalElements, int nThreads){
+long int* PthPrefixSum (long int* vEntrada, long int nTotalElements, long int nThreads){
 	//cria um vetor maximo e um vetor resultante
 	long int* vSaida	= malloc (nTotalElements*sizeof(long int));
 	long int* vMaximos	= malloc (nThreads*sizeof(long int));
@@ -126,7 +124,7 @@ long int* PthPrefixSum (long int* vEntrada, int nTotalElements, int nThreads){
 	return vSaida;
 }
 
-int verifica_corretude(long int* OutputVector, int nTotalElements){
+int verifica_corretude(long int* OutputVector, long int nTotalElements){
 	for (int i = 1 ; i < nTotalElements ; i++)
 		if (OutputVector[i] != OutputVector[i-1] + i + 1)
 			return 0;
@@ -141,12 +139,10 @@ int main (int argc, char *argv[]){
 		exit(1);
 	}
 
-	int nTotalElements	= atoi(argv[1]);
-	int nThreads		= atoi(argv[2]);
+	long int nTotalElements	= atoi(argv[1]);
+	long int nThreads		= atoi(argv[2]);
 
 	//correcao de erros
-	fprintf (stdout, "Rodando: vetor de %d elementos com %d threads\n", nTotalElements, nThreads);
-
 	long int *InputVector = malloc (nTotalElements*sizeof(long int));
 
 	//gera o vetor
@@ -164,25 +160,14 @@ int main (int argc, char *argv[]){
 
 	chrono_stop (&chronoThreads);
 
-	double tempo 	= (double) chrono_gettotal (&chronoThreads);
+	double tempo 	= (double) chrono_gettotal (&chronoThreads) / (1000 * 1000 * 1000);
 	double op		= tempo / nTotalElements;
 
-	fprintf(stdout, "Tempo total:	%lf nanosecs\n", tempo);
-	fprintf(stdout, "OPS:		%lf OP/nanosecs\n", op);
-	
-	#ifdef DEBUGPRINT
+	//fprintf (stdout, "Rodando: vetor de %ld elementos com %ld threads\n", nTotalElements, nThreads);
+	//fprintf(stdout, "Tempo total:	%lf 	nanosecs\n", tempo);
+	//fprintf(stdout, "OPS:			%lf 		OP/nanosecs\n", op);
 
-	fprintf(stdout, "\nInput:\n");
-	imprimeVetor (InputVector, nTotalElements);
-	fprintf(stdout, "\nOutput:\n");
-	imprimeVetor (OutputVector, nTotalElements);
-
-	#endif
-
-	if (verifica_corretude(OutputVector, nTotalElements))
-		fprintf (stdout, "ta certo lol\n");
-	else
-		fprintf (stdout, "rapaz...\n");
+	fprintf(stdout, "%lf,%lf\n", tempo, op);
 
 	return 0;
 }
