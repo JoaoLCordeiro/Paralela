@@ -158,5 +158,17 @@ int main (int argc, char *argv[]){
 	//print para gerar os dados da planilha
 	fprintf(stdout, "%lf,%lf\n", tempo, op);
 
+	// codigo de verificação
+    // (verifica o vetor de saída se contém uma soma de prefixos 
+    //   correspondente ao vetor de entrada)
+    long int last = 0;
+    for( long int i=0; i<nTotalElements ; i++ ) {
+           if( OutputVector[i] != (InputVector[i] + last) ) {
+               fprintf( stderr, "Out[%ld]= %ld (wrong result!) %ld\n", i, OutputVector[i] , InputVector[i] + last);
+               break;
+           }
+           last = OutputVector[i];    
+    } 
+
 	return 0;
 }

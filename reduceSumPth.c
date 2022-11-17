@@ -197,5 +197,7 @@ int main( int argc, char *argv[] )
     double OPS = (nTotalElements)/total_time_in_seconds;
     printf( "Throughput: %lf OP/s\n", OPS );
     
+    
+
     return 0;
 }
