@@ -36,7 +36,7 @@ void PrefixSumPart (long int* argum){
 		vetorS[i] = vetorE[i] + vetorS[i-1];
 	}
 
-	//coloca o maximo nessa posicao
+	//coloca o ultimo valor nessa posicao do argum
 	*((long int *) argum[4]) = vetorS[fim-1];
 
 	//no fim, libera o vetor de argumentos
@@ -53,6 +53,7 @@ void sumMaxPrefix (long int* argum){
 	long int*	vetorS	= (long int*) argum[3];
 	long int*	vMax	= (long int*) argum[4];
 
+	//a soma nao acontece no primeiro intervalo
 	if (thread != 0)
 		for (int posicao = comeco ; posicao < fim ; posicao++)
 			vetorS[posicao] += vMax[thread-1];
@@ -63,7 +64,7 @@ void sumMaxPrefix (long int* argum){
 }
 
 long int* PthPrefixSum (long int* vEntrada, long int nTotalElements, long int nThreads){
-	//cria um vetor maximo e um vetor resultante
+	//cria um vetor maximo e um vetor saida
 	long int* vSaida	= malloc (nTotalElements*sizeof(long int));
 	long int* vMaximos	= malloc (nThreads*sizeof(long int));
 
@@ -89,15 +90,9 @@ long int* PthPrefixSum (long int* vEntrada, long int nTotalElements, long int nT
 	//calcula a soma de prefixos dos maximos
 	sumMax (vMaximos, nThreads);
 
-	#ifdef DEBUGPRINT
-
-	fprintf(stdout, "\nOutput antes da soma dos max:\n");
-	imprimeVetor (vSaida, nTotalElements);
-
-	#endif
-
 	//nThreads + 1 = threads + main
 	pthread_barrier_init(&barreiraThread, NULL, nThreads+1);
+
 	//soma paralelamente as somas de prefixos de maximos nas partes
 	for (int i = 0 ; i < nThreads ; i++){
 		long int* argumentos = malloc (5 * sizeof(long int));
@@ -112,13 +107,6 @@ long int* PthPrefixSum (long int* vEntrada, long int nTotalElements, long int nT
 
 	pthread_barrier_wait(&barreiraThread);
 	pthread_barrier_destroy(&barreiraThread);
-
-	#ifdef DEBUGPRINT
-
-	fprintf(stdout, "\nvMaximos:\n");
-	imprimeVetor (vMaximos, nThreads);
-
-	#endif
 
 	//retorna o vetor resultante
 	return vSaida;
@@ -161,12 +149,13 @@ int main (int argc, char *argv[]){
 	chrono_stop (&chronoThreads);
 
 	double tempo 	= (double) chrono_gettotal (&chronoThreads) / (1000 * 1000 * 1000);
-	double op		= tempo / nTotalElements;
+	double op		= nTotalElements / tempo;
 
 	//fprintf (stdout, "Rodando: vetor de %ld elementos com %ld threads\n", nTotalElements, nThreads);
 	//fprintf(stdout, "Tempo total:	%lf 	nanosecs\n", tempo);
 	//fprintf(stdout, "OPS:			%lf 		OP/nanosecs\n", op);
 
+	//print para gerar os dados da planilha
 	fprintf(stdout, "%lf,%lf\n", tempo, op);
 
 	return 0;
