@@ -74,8 +74,8 @@ long int* PthPrefixSum (long int* vEntrada, long int nTotalElements, long int nT
 	//laço que cria as threads que fazem a soma parcial e retornam o máximo daquela area em um vetor de maximos
 	for (int i = 0 ; i < nThreads ; i++){
 		long int* argumentos = malloc (5 * sizeof(long int));
-		argumentos[0] = i * (nTotalElements / nThreads);				//comeco
-		argumentos[1] = argumentos[0] + (nTotalElements / nThreads);	//fim
+		argumentos[0] = ((i * nTotalElements) / nThreads);		//comeco
+		argumentos[1] = (((i+1) * nTotalElements) / nThreads);	//fim
 		argumentos[2] = (long int) vEntrada;
 		argumentos[3] = (long int) vSaida;
 		argumentos[4] = (long int) &(vMaximos[i]);
@@ -96,9 +96,9 @@ long int* PthPrefixSum (long int* vEntrada, long int nTotalElements, long int nT
 	//soma paralelamente as somas de prefixos de maximos nas partes
 	for (int i = 0 ; i < nThreads ; i++){
 		long int* argumentos = malloc (5 * sizeof(long int));
-		argumentos[0] = i * (nTotalElements / nThreads);				//comeco
-		argumentos[1] = argumentos[0] + (nTotalElements / nThreads);	//fim
-		argumentos[2] = i;
+		argumentos[0] = ((i * nTotalElements) / nThreads);		//comeco
+		argumentos[1] = (((i+1) * nTotalElements) / nThreads);	//fim
+		argumentos[2] = i;										//numero da thread
 		argumentos[3] = (long int) vSaida;
 		argumentos[4] = (long int) vMaximos;
 

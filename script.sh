@@ -1,5 +1,10 @@
 make -B 2> /dev/null
 
+#para re-fazer os experimentos, excluímos os arquivos antigos
+#caso não queira excluir, guarde os arquivos antigos em outro diretório
+rm resultados.csv todos-tempo.csv todos-ops.csv 2> /dev/null
+
+#numero de elementos
 ARGELEM=1073741824
 
 echo "Thread,Tempo Min,OP/s Max,Tempo Medio,OP/s Medio,Aceleracao" >> resultados.csv
@@ -13,6 +18,9 @@ do
 	OPSMED="$(cat temp.txt | cut -d "," -f 2)"
 	TEMPOMIN=$TEMPOMED
 	OPSMAX=$OPSMED
+
+	TODOSTEMPO=$ARGTHREADS","$TEMPOMED
+	TODOSOPS=$ARGTHREADS","$OPSMED
 
 	for i in 2 3 4 5 6 7 8 9 10
 	do
@@ -33,6 +41,9 @@ do
 			OPSMAX=$OPS
 		fi
 
+		TODOSTEMPO=$TODOSTEMPO","$TEMPO
+		TODOSOPS=$TODOSOPS","$OPS
+
 	done
 
 	TEMPOMED="$(echo "scale=6;"$TEMPOMED" / 10" | bc)"
@@ -46,6 +57,9 @@ do
 
 	echo "$ARGTHREADS,$TEMPOMIN,$OPSMAX,$TEMPOMED,$OPSMED,$ACELERACAO" >> resultados.csv
 	OPSANT=$OPSMED
+
+	echo "$TODOSTEMPO" >> todos-tempo.csv
+	echo "$TODOSOPS" >> todos-ops.csv
 
 	echo "Rodou para "$ARGTHREADS" threads..."
 
