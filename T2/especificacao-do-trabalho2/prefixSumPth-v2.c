@@ -102,6 +102,8 @@ void* PartialSum (void* argum){
 	long int fim	= vetorArg[1];
 	long int thread	= vetorArg[2];
 
+	fprintf (stdout, "PartialSum de %d até %d na thread %d\n", comeco, fim, thread);
+
 	long int sum = 0;
 
 	//calcula a soma parcial da thread
@@ -124,6 +126,8 @@ void* FinalSum (void* argum){
 	long int comeco	= vetorArg[0];
 	long int fim	= vetorArg[1];
 	long int thread	= vetorArg[2];
+
+	fprintf (stdout, "FinalSum de %d até %d na thread %d\n", comeco, fim, thread);
 
 	//pega a soma parcial da thread
 	long int myPartialSum = 0;
@@ -150,6 +154,8 @@ void ParallelPrefixSumPth( const TYPE *InputVec,
    pthread_t Thread[MAX_THREADS];
    int my_thread_id[MAX_THREADS];
 
+   long int nElements = nTotalElements;
+
    fprintf (stdout, "comecou o prefixsum\n");
    
    // inicializar a barreira
@@ -164,9 +170,9 @@ void ParallelPrefixSumPth( const TYPE *InputVec,
    //laço que cria as threads que fazem a soma parcial e retornam o máximo daquela area em um vetor de maximos
 	for (int i = 0 ; i < nThreads ; i++){
 		long int* argumentos = (long int *) malloc (3 * sizeof(long int));
-		argumentos[0] = ((i * nTotalElements) / nThreads);		//comeco
-		argumentos[1] = (((i+1) * nTotalElements) / nThreads);	//fim
-		argumentos[2] = i;										//num da thread
+		argumentos[0] = ((i * nElements) / nThreads);		//comeco
+		argumentos[1] = (((i+1) * nElements) / nThreads);	//fim
+		argumentos[2] = i;									//num da thread
 
 		pthread_create (&vThread[i], NULL, PartialSum, (void *) argumentos);
 	}
@@ -192,9 +198,9 @@ void ParallelPrefixSumPth( const TYPE *InputVec,
 
 	for (int i = 0 ; i < nThreads ; i++){
 		long int* argumentos = (long int *) malloc (3 * sizeof(long int));
-		argumentos[0] = ((i * nTotalElements) / nThreads);		//comeco
-		argumentos[1] = (((i+1) * nTotalElements) / nThreads);	//fim
-		argumentos[2] = i;										//num da thread
+		argumentos[0] = ((i * nElements) / nThreads);		//comeco
+		argumentos[1] = (((i+1) * nElements) / nThreads);	//fim
+		argumentos[2] = i;									//num da thread
 
 		fprintf (stdout, "vai criar a thread %d\n", i);
 		pthread_create (&vThread[i], NULL, FinalSum, (void *) argumentos);
@@ -300,8 +306,8 @@ int main(int argc, char *argv[])
 	for (long i = 0; i < nTotalElements; i++){
 	        r = rand();  // Returns a pseudo-random integer
 	                     //    between 0 and RAND_MAX.
-		//InputVector[i] = (r % 1000) - 500;
-		InputVector[i] = 1; // i + 1;
+		InputVector[i] = (r % 1000) - 500;
+		//InputVector[i] = 1; // i + 1;
 	}
 
 	printf("\n\nwill use %d threads to calculate prefix-sum of %d total elements\n", 
