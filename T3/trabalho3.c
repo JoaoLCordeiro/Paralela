@@ -3,9 +3,13 @@
 #include <string.h>
 #include <mpi.h>
 
+#include "chrono.c"
+
 #define TYPEMSG long int
 
 int nProc, rankProc;
+
+chronometer_t cronometro;
 
 void TrataEntradas (int argc, char* argv[], int* nmsg, int* tmsg, int* npro, int* bloq){
 	if ((argc != 5) && (argc != 4)){
@@ -15,7 +19,7 @@ void TrataEntradas (int argc, char* argv[], int* nmsg, int* tmsg, int* npro, int
 
 	*nmsg = atoi(argv[1]);
 	if (*nmsg % 2 != 0){
-		fprintf(stderr, "Tamanho das mensagens inválido (%d não é múltiplo de 2)\n", *nmsg);
+		fprintf(stderr, "Número de mensagens inválido (%d não é múltiplo de 2)\n", *nmsg);
 		exit(1);
 	}
 
@@ -38,7 +42,7 @@ void TrataEntradas (int argc, char* argv[], int* nmsg, int* tmsg, int* npro, int
 			*bloq = 0;
 	}
 
-	fprintf(stderr, "nmsg = %d\ntmsg = %d\nnpro = %d\nbloq = %d\n", *nmsg, *tmsg, *npro, *bloq);
+	//fprintf(stderr, "nmsg = %d\ntmsg = %d\nnpro = %d\nbloq = %d\n", *nmsg, *tmsg, *npro, *bloq);
 }
 
 TYPEMSG* CriaMsg (int numIndices){
@@ -67,7 +71,7 @@ int main (int argc, char* argv[]){
 	MPI_Comm_size (MPI_COMM_WORLD, &nProc);
 	MPI_Comm_rank (MPI_COMM_WORLD, &rankProc);
 
-	fprintf (stderr, "Passou a parte que pega o rank e o size\n");
+	//fprintf (stderr, "Passou a parte que pega o rank e o size\n");
 
 	int ni	 = tmsg/sizeof(TYPEMSG);
 	int otherProc = (rankProc + 1) % 2;
@@ -75,7 +79,16 @@ int main (int argc, char* argv[]){
 	TYPEMSG* buffMsgRecv = (TYPEMSG*) malloc (tmsg);
 	MPI_Status statusRecv;
 
-	fprintf (stderr, "Passou o cria msg e o malloc\n");
+	//fprintf (stderr, "Passou o cria msg e o malloc\n");
+
+	if (bloq == 0){
+		MPI_Barrier(MPI_COMM_WORLD);
+	}
+
+	if (rankProc == 0){
+		chrono_reset(&cronometro);
+		chrono_start(&cronometro);
+	}
 
 	//é bloqueante ou não
 	if (bloq == 1)
@@ -91,13 +104,22 @@ int main (int argc, char* argv[]){
 			}
 	else
 		for (int i_msg = 0 ; i_msg < nmsg ; i_msg++){
-			MPI_Send (buffMsgSend, ni, MPI_LONG, otherProc, 0, MPI_COMM_WORLD);
+			MPI_Bsend (buffMsgSend, ni, MPI_LONG, otherProc, 0, MPI_COMM_WORLD);
 			MPI_Recv (buffMsgRecv, ni, MPI_LONG, otherProc, 0, MPI_COMM_WORLD, &statusRecv);
 		}
 
-	fprintf (stdout, "Processo %d:	vetorSend[0] = %ld	vetorRecv[0] = %ld\n", rankProc, buffMsgSend[0], buffMsgRecv[0]);
+	if (bloq == 0){
+		MPI_Barrier(MPI_COMM_WORLD);
+	}
 
-	fprintf (stderr, "Passou a troca de mensagens\n");
+	if (rankProc == 0){
+		chrono_stop(&cronometro);
+		chrono_reportTime(&cronometro, "cronometro");
+	}
+
+	//fprintf (stdout, "Processo %d:	vetorSend[0] = %ld	vetorRecv[0] = %ld\n", rankProc, buffMsgSend[0], buffMsgRecv[0]);
+
+	//fprintf (stderr, "Passou a troca de mensagens\n");
 
 	MPI_Finalize();
 
