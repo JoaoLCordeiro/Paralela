@@ -11,6 +11,74 @@ int nProc, rankProc;
 
 chronometer_t cronometro;
 
+void verificaVetores( long ping[], long pong[], int ni ){
+   static int twice = 0;
+   int ping_ok = 1;
+   int pong_ok = 1;
+   int i, rank;
+      
+   MPI_Comm_rank( MPI_COMM_WORLD, &rank );   
+   
+   if( twice == 0 ) {
+  
+      if (rank == 0) {
+      
+          for( i=0; i<ni; i++ ) {
+            if( ping[i] != i+1 ) { ping_ok = 0; break; }
+            if( pong[i] != 0   ) { pong_ok = 0; break; }
+          }
+          if( !ping_ok )
+             fprintf(stderr, 
+               "--------- rank 0, initial value of ping[%d] = %ld (wrong!)\n", i, ping[i] );
+          if( !pong_ok )
+             fprintf(stderr, 
+               "--------- rank 0, initial value of pong[%d] = %ld (wrong!)\n", i, pong[i] );
+          if( ping_ok && pong_ok )
+             fprintf(stderr, 
+               "--------- rank 0, initial value of ping and pong are OK\n" );
+
+      } else if (rank == 1) {
+      
+          for( i=0; i<ni; i++ ) {
+            if( ping[i] != 0      ) { ping_ok = 0; break; }
+            if( pong[i] != i+ni+1 ) { pong_ok = 0; break; }
+          }
+          if( !ping_ok )
+             fprintf(stderr, 
+               "--------- rank 1, initial value of ping[%d] = %ld (wrong!)\n", i, ping[i] );
+          if( !pong_ok )
+             fprintf(stderr, 
+               "--------- rank 1, initial value of pong[%d] = %ld (wrong!)\n", i, pong[i] );
+          if( ping_ok && pong_ok )
+             fprintf(stderr, 
+               "--------- rank 1, initial values of ping and pong are OK\n" );
+      }          
+   }   // end twice == 0
+   
+   if( twice == 1 ) {
+  
+          for( i=0; i<ni; i++ ) {
+            if( ping[i] != i+1      ) { ping_ok = 0; break; }
+            if( pong[i] != i+ni+1   ) { pong_ok = 0; break; }
+          }
+          if( !ping_ok )
+             fprintf(stderr, 
+               "--------- rank %d, FINAL value of ping[%d] = %ld (wrong!)\n", rank, i, ping[i] );
+          if( !pong_ok )
+             fprintf(stderr, 
+               "--------- rank %d, FINAL value of pong[%d] = %ld (wrong!)\n", rank, i, pong[i] );
+          if( ping_ok && pong_ok )
+             fprintf(stderr, 
+               "--------- rank %d, FINAL values of ping and pong are OK\n", rank );
+
+   }  // end twice == 1
+   
+   ++twice;
+   if( twice > 2 )
+      fprintf(stderr, 
+               "--------- rank %d, verificaVetores CALLED more than 2 times!!!\n", rank );     
+}  
+
 void TrataEntradas (int argc, char* argv[], int* nmsg, int* tmsg, int* npro, int* bloq){
 	if ((argc != 5) && (argc != 4)){
 		fprintf(stderr, "A chamada nao possui o numero correto de argumentos :(\n");
@@ -76,8 +144,13 @@ int main (int argc, char* argv[]){
 	int ni	 = tmsg/sizeof(TYPEMSG);
 	int otherProc = (rankProc + 1) % 2;
 	TYPEMSG* buffMsgSend = CriaMsg(ni);
-	TYPEMSG* buffMsgRecv = (TYPEMSG*) malloc (tmsg);
+	TYPEMSG* buffMsgRecv = (TYPEMSG*) calloc (ni, sizeof(TYPEMSG));
 	MPI_Status statusRecv;
+
+	if (rankProc == 0)
+		verificaVetores( buffMsgSend, buffMsgRecv, ni);
+	else //(rankProc == 1)
+		verificaVetores( buffMsgRecv, buffMsgSend, ni);
 
 	//fprintf (stderr, "Passou o cria msg e o malloc\n");
 
@@ -116,6 +189,11 @@ int main (int argc, char* argv[]){
 		chrono_stop(&cronometro);
 		chrono_reportTime(&cronometro, "cronometro");
 	}
+
+	if (rankProc == 0)
+		verificaVetores( buffMsgSend, buffMsgRecv, ni);
+	else //(rankProc == 1)
+		verificaVetores( buffMsgRecv, buffMsgSend, ni);
 
 	//fprintf (stdout, "Processo %d:	vetorSend[0] = %ld	vetorRecv[0] = %ld\n", rankProc, buffMsgSend[0], buffMsgRecv[0]);
 
