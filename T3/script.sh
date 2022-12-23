@@ -13,7 +13,8 @@ do
 	echo "Mensagens de tamanho $ARGTAM, bloqueantes" >> resultados-b.csv
 	for vez in $(seq 1 10)
 	do
-		mpirun -np 2 ./trabalho3 "$ARGTAM" "$NMSG" 2 -b | grep '==> each op takes' | awk '{print $5}' >> resultados-b.csv
+		mpirun -np 2 ./trabalho3 "$NMSG" "$ARGTAM" 2 -b | grep 'Tempo e vazao:' | awk '{printf "%s\n",$4}' >> resultados-b.csv
+		#mpirun -np 2 ./trabalho3 "$NMSG" "$ARGTAM" 2 -b >> resultados-b.csv
 	done
 done
 
@@ -23,7 +24,8 @@ do
 	echo "Mensagens de tamanho $ARGTAM, nao-bloqueantes" >> resultados-nb.csv
 	for vez in $(seq 1 10)
 	do
-		mpirun -np 2 ./trabalho3 "$ARGTAM" "$NMSG" 2 -nb | grep '==> each op takes' | awk '{print $5}' >> resultados-nb.csv
+		mpirun -np 2 ./trabalho3 "$NMSG" "$ARGTAM" 2 -nb | grep 'Tempo e vazao:' | awk '{printf "%s\n",$4}' >> resultados-nb.csv
+		#mpirun -np 2 ./trabalho3 "$NMSG" "$ARGTAM" 2 -nb >> resultados-nb.csv
 	done
 done
 
