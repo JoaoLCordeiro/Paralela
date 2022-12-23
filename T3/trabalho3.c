@@ -188,9 +188,8 @@ int main (int argc, char* argv[]){
 	if (rankProc == 0){
 		chrono_stop(&cronometro);
 		double tempo = (double) chrono_gettotal(&cronometro) / (1000 * 1000 * 1000);
-		double vazao = nmsg / tempo;
 
-		fprintf (stdout, "Tempo e vazao:	%f	%f\n", nmsg, tempo, vazao);
+		fprintf (stdout, "Tempo:	%f\n", tempo);
 	}
 
 	if (rankProc == 0)
