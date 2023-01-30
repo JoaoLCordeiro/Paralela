@@ -134,32 +134,46 @@ int tetoLog (int n){
 }
 
 int descobreFase (int rankProc, int raiz, int nProc){
-	int fase = 0;
-	int rank = raiz;
-	if (rankProc >= raiz){
-		int i = 1;
-		while (rank < rankProc){
-			rank += i;
-			i = i * 2;
-			fase++;
-		}
-	}
-	else{
-		int i = 1;
-		while (rank < nProc){
-			rank += i;
-			i = i * 2;
-			fase++;
-		}
-		rank = rank % nProc;
-		while (rankProc > rank){
-			rank += i;
-			i = i * 2;
-			fase++;
-		}
-	}
+	//int fase = 0;
+	//int rank = raiz;
+	//if (rankProc >= raiz){
+	//	int i = 1;
+	//	while (rank < rankProc){
+	//		rank += i;
+	//		i = i * 2;
+	//		fase++;
+	//	}
+	//}
+	//else{
+	//	int i = 1;
+	//	while (rank < nProc){
+	//		rank += i;
+	//		i = i * 2;
+	//		fase++;
+	//	}
+	//	rank = rank % nProc;
+	//	while (rankProc > rank){
+	//		rank += i;
+	//		i = i * 2;
+	//		fase++;
+	//	}
+	//}
+//
+	//return fase;
 
-	return fase;
+	int distancia;
+	if (rankProc >= raiz)
+		distancia = rankProc - raiz;
+	else
+		distancia = rankProc + nProc - raiz;
+	
+	int res;
+	if (distancia == 0)
+		res = distancia;
+	else
+	 	res = tetoLog(distancia+1);
+
+	return res;
 }
 
 int pow2 (int n){
@@ -232,6 +246,8 @@ int main (int argc, char* argv[]){
 
 	//fprintf (stderr, "Passou o cria msg e o malloc\n");
 
+	MPI_Barrier(MPI_COMM_WORLD);
+
 	if (rankProc == 0){
 		chrono_reset(&cronometro);
 		chrono_start(&cronometro);
@@ -243,8 +259,9 @@ int main (int argc, char* argv[]){
 	//aqui descobrimos em qual fase o processo atual começa a ouvir
 	int faseComeco = descobreFase(rankProc, raiz, nProc);
 	
-	if (rankProc == 0)
-		calculaNumeros (nProc, raiz, numFases);
+	//função para debug
+	//if (rankProc == 0)
+	//	calculaNumeros (nProc, raiz, numFases);
 
 	int destinoMsg;
 	int origemMsg;
@@ -272,6 +289,8 @@ int main (int argc, char* argv[]){
 		else
 			MPI_Ssend (buffMsg, ni, MPI_LONG, destinoMsg, 0, MPI_COMM_WORLD);
 	}
+
+	MPI_Barrier(MPI_COMM_WORLD);
 
 	if (rankProc == 0){
 		chrono_stop(&cronometro);
