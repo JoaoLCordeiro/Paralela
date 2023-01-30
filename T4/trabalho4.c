@@ -121,6 +121,59 @@ TYPEMSG* CriaMsg (int numIndices){
 	return buffMsg;
 }
 
+int tetoLog (int n){
+	double nd = n;
+	int res = 0;
+
+	while (nd > 1){
+		res++;
+		nd = nd/2;
+	}
+
+	return res;
+}
+
+int descobreFase (int rankProc, int raiz, int nProc){
+	int fase = 0;
+	int rank = raiz;
+	if (rankProc >= raiz){
+		int i = 1;
+		while (rank < rankProc){
+			rank += i;
+			i = i * 2;
+			fase++;
+		}
+	}
+	else{
+		int i = 1;
+		while (rank + i <= nProc){
+			rank += i;
+			i = i * 2;
+			fase++;
+		}
+		rank = rank % nProc;
+		while (rank < rankProc){
+			rank += i;
+			i = i * 2;
+			fase++;
+		}
+	}
+
+	return fase;
+}
+
+int pow2 (int n){
+	if (n == 0)
+		return 1;
+	else{
+		int res = 1;
+		for (int i = 0 ; i < n ; i++)
+			res = res * 2;
+
+		return res;
+	}
+}
+
 int main (int argc, char* argv[]){
 	int nmsg, tmsg, raiz;
 	TrataEntradas (argc, argv, &nmsg, &tmsg, &raiz);
@@ -136,6 +189,8 @@ int main (int argc, char* argv[]){
 	int ni	 = tmsg/sizeof(TYPEMSG);
 
 	TYPEMSG* buffMsg;
+	MPI_Status statusRecv;
+
 	if (rankProc == raiz)
 		buffMsg = CriaMsg(ni);
 	else
@@ -149,9 +204,40 @@ int main (int argc, char* argv[]){
 		chrono_start(&cronometro);
 	}
 
-	//é bloqueante ou não
-	for (int i_msg = 0 ; i_msg < nmsg ; i_msg++)
-		MPI_Bcast((void *) buffMsg, nProc, MPI_LONG, raiz, MPI_COMM_WORLD);
+	//aqui descobrimos quantas fases de send+recv terao
+	int numFases = tetoLog(nProc);
+	//fprintf (stdout, "Teto da Raiz:	%d\n", numFases);
+
+	//aqui descobrimos em qual fase o processo atual começa a ouvir
+	int faseComeco = descobreFase (rankProc, raiz, nProc);
+	//fprintf (stdout, "Fase Comeco rank = %d:	%d\n", rankProc, faseComeco);
+
+	//se o processo for a raiz, começa falando, se nao, começa ouvindo
+	if (rankProc == raiz){
+		int destinoMsg;
+
+		for (; faseComeco < numFases ; faseComeco++){
+			destinoMsg = pow2(faseComeco) % nProc + rankProc;
+			MPI_Ssend (buffMsg, ni, MPI_LONG, destinoMsg, 0, MPI_COMM_WORLD);
+		}
+	}
+	else{
+		int origemMsg = rankProc - pow2(faseComeco-1);
+		int destinoMsg;
+
+		MPI_Recv (buffMsg, ni, MPI_LONG, origemMsg, 0, MPI_COMM_WORLD, &statusRecv);
+
+		//if (rankProc == msgAnalisada)
+		//	fprintf (stdout, "Rank %d	Recebe do %d\n", rankProc, origemMsg);
+
+		for (; faseComeco < numFases ; faseComeco++){
+			destinoMsg = pow2(faseComeco) % nProc + rankProc;
+			MPI_Ssend (buffMsg, ni, MPI_LONG, destinoMsg, 0, MPI_COMM_WORLD);
+
+			//if (rankProc == msgAnalisada)
+			//	fprintf (stdout, "Rank %d	Manda pro %d\n", rankProc, destinoMsg);
+		}
+	}
 
 	if (rankProc == 0){
 		chrono_stop(&cronometro);
