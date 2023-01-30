@@ -146,13 +146,13 @@ int descobreFase (int rankProc, int raiz, int nProc){
 	}
 	else{
 		int i = 1;
-		while (rank + i <= nProc){
+		while (rank < nProc){
 			rank += i;
 			i = i * 2;
 			fase++;
 		}
 		rank = rank % nProc;
-		while (rank < rankProc){
+		while (rankProc > rank){
 			rank += i;
 			i = i * 2;
 			fase++;
@@ -171,6 +171,39 @@ int pow2 (int n){
 			res = res * 2;
 
 		return res;
+	}
+}
+
+void calculaNumeros (int nProc, int raiz, int numFases){
+	int origemMsg, destinoMsg;
+
+	for (int i = 0 ; i < nProc ; i++){
+
+		int faseComeco = descobreFase(i, raiz, nProc);
+		fprintf (stdout, "\n\nProcesso:	%d\nComeco:	%d\n", i, faseComeco);
+
+		if (i != raiz){
+			origemMsg = ( i - pow2(faseComeco-1) ) % nProc;
+			if (origemMsg < 0)
+				origemMsg = nProc + origemMsg;
+			fprintf (stdout, "Recebe do:	%d\n", origemMsg);
+		}
+
+		//envia as mensagens que tem que mandar
+		for (; faseComeco < numFases ; faseComeco++){
+			destinoMsg = (pow2(faseComeco) + i) % nProc;
+			if (faseComeco == numFases - 1){
+				int distancia;
+				if (raiz <= i)
+					distancia = i - raiz;
+				else
+					distancia = i + nProc - raiz;
+				if (distancia + pow2(faseComeco) < nProc)
+					fprintf (stdout, "Manda pro:	%d\n", destinoMsg);
+			}
+			else
+				fprintf (stdout, "Manda pro:	%d\n", destinoMsg);
+		}
 	}
 }
 
@@ -204,39 +237,40 @@ int main (int argc, char* argv[]){
 		chrono_start(&cronometro);
 	}
 
-	//aqui descobrimos quantas fases de send+recv terao
+	//aqui descobrimos quantas fases de envio terao
 	int numFases = tetoLog(nProc);
-	//fprintf (stdout, "Teto da Raiz:	%d\n", numFases);
 
 	//aqui descobrimos em qual fase o processo atual começa a ouvir
-	int faseComeco = descobreFase (rankProc, raiz, nProc);
-	//fprintf (stdout, "Fase Comeco rank = %d:	%d\n", rankProc, faseComeco);
+	int faseComeco = descobreFase(rankProc, raiz, nProc);
+	
+	if (rankProc == 0)
+		calculaNumeros (nProc, raiz, numFases);
 
-	//se o processo for a raiz, começa falando, se nao, começa ouvindo
-	if (rankProc == raiz){
-		int destinoMsg;
+	int destinoMsg;
+	int origemMsg;
 
-		for (; faseComeco < numFases ; faseComeco++){
-			destinoMsg = pow2(faseComeco) % nProc + rankProc;
-			MPI_Ssend (buffMsg, ni, MPI_LONG, destinoMsg, 0, MPI_COMM_WORLD);
-		}
-	}
-	else{
-		int origemMsg = rankProc - pow2(faseComeco-1);
-		int destinoMsg;
-
+	//se o processo nao for a raiz, começa ouvindo
+	if (rankProc != raiz){
+		origemMsg = ( rankProc - pow2(faseComeco-1) ) % nProc;
+		if (origemMsg < 0)
+			origemMsg = nProc + origemMsg;
 		MPI_Recv (buffMsg, ni, MPI_LONG, origemMsg, 0, MPI_COMM_WORLD, &statusRecv);
+	}
 
-		//if (rankProc == msgAnalisada)
-		//	fprintf (stdout, "Rank %d	Recebe do %d\n", rankProc, origemMsg);
-
-		for (; faseComeco < numFases ; faseComeco++){
-			destinoMsg = pow2(faseComeco) % nProc + rankProc;
-			MPI_Ssend (buffMsg, ni, MPI_LONG, destinoMsg, 0, MPI_COMM_WORLD);
-
-			//if (rankProc == msgAnalisada)
-			//	fprintf (stdout, "Rank %d	Manda pro %d\n", rankProc, destinoMsg);
+	//envia as mensagens que tem que mandar
+	for (; faseComeco < numFases ; faseComeco++){
+		destinoMsg = (pow2(faseComeco) + rankProc) % nProc;
+		if (faseComeco == numFases - 1){
+			int distancia;
+			if (raiz <= rankProc)
+				distancia = rankProc - raiz;
+			else
+				distancia = rankProc + nProc - raiz;;
+			if (distancia + pow2(faseComeco) < nProc)
+				MPI_Ssend (buffMsg, ni, MPI_LONG, destinoMsg, 0, MPI_COMM_WORLD);
 		}
+		else
+			MPI_Ssend (buffMsg, ni, MPI_LONG, destinoMsg, 0, MPI_COMM_WORLD);
 	}
 
 	if (rankProc == 0){
@@ -245,10 +279,6 @@ int main (int argc, char* argv[]){
 
 		fprintf (stdout, "Tempo:	%f\n", tempo);
 	}
-
-	//fprintf (stdout, "Processo %d:	vetorSend[0] = %ld	vetorRecv[0] = %ld\n", rankProc, buffMsgSend[0], buffMsgRecv[0]);
-
-	//fprintf (stderr, "Passou a troca de mensagens\n");
 
 	MPI_Finalize();
 
