@@ -5,24 +5,14 @@ make -B 2> /dev/null
 rm resultados-b.csv resultados-nb.csv 2> /dev/null
 
 ##numero de elementos
-NMSG=262144
+NMSG=20000
 
 # para bloqueantes
 for ARGTAM in 8 1024 4096 16384
 do
-	echo "Mensagens de tamanho $ARGTAM, bloqueantes" >> resultados-b.csv
+	echo "Mensagens de tamanho $ARGTAM" >> resultados.csv
 	for vez in $(seq 1 10)
 	do
-		mpirun -np 2 ./trabalho4 "$NMSG" "$ARGTAM" 2 -b | grep 'Tempo:' | awk '{printf "%s\n",$2}' >> resultados-b.csv
-	done
-done
-
-#para nao bloqueantes
-for ARGTAM in 8 1024 4096 16384
-do
-	echo "Mensagens de tamanho $ARGTAM, nao-bloqueantes" >> resultados-nb.csv
-	for vez in $(seq 1 10)
-	do
-		mpirun -np 2 ./trabalho4 "$NMSG" "$ARGTAM" 2 -nb | grep 'Tempo:' | awk '{printf "%s\n",$2}' >> resultados-nb.csv
+		mpirun -np 8 ./trabalho4 --hostfile hostfile2.txt "$NMSG" "$ARGTAM" -r 0 | grep 'Tempo:' | awk '{printf "%s\n",$2,$4}' >> resultados.csv
 	done
 done

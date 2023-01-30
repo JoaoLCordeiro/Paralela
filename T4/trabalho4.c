@@ -134,33 +134,6 @@ int tetoLog (int n){
 }
 
 int descobreFase (int rankProc, int raiz, int nProc){
-	//int fase = 0;
-	//int rank = raiz;
-	//if (rankProc >= raiz){
-	//	int i = 1;
-	//	while (rank < rankProc){
-	//		rank += i;
-	//		i = i * 2;
-	//		fase++;
-	//	}
-	//}
-	//else{
-	//	int i = 1;
-	//	while (rank < nProc){
-	//		rank += i;
-	//		i = i * 2;
-	//		fase++;
-	//	}
-	//	rank = rank % nProc;
-	//	while (rankProc > rank){
-	//		rank += i;
-	//		i = i * 2;
-	//		fase++;
-	//	}
-	//}
-//
-	//return fase;
-
 	int distancia;
 	if (rankProc >= raiz)
 		distancia = rankProc - raiz;
@@ -231,8 +204,6 @@ int main (int argc, char* argv[]){
 	MPI_Comm_size (MPI_COMM_WORLD, &nProc);
 	MPI_Comm_rank (MPI_COMM_WORLD, &rankProc);
 
-	//fprintf (stderr, "Passou a parte que pega o rank e o size\n");
-
 	int ni	 = tmsg/sizeof(TYPEMSG);
 
 	TYPEMSG* buffMsg;
@@ -241,10 +212,7 @@ int main (int argc, char* argv[]){
 	if (rankProc == raiz)
 		buffMsg = CriaMsg(ni);
 	else
-		//buffMsg = (TYPEMSG*) calloc (ni, sizeof(TYPEMSG));
-		buffMsg = (TYPEMSG*) malloc (ni * sizeof(TYPEMSG));
-
-	//fprintf (stderr, "Passou o cria msg e o malloc\n");
+		buffMsg = (TYPEMSG*) calloc (ni, sizeof(TYPEMSG));
 
 	MPI_Barrier(MPI_COMM_WORLD);
 
@@ -255,39 +223,46 @@ int main (int argc, char* argv[]){
 
 	//aqui descobrimos quantas fases de envio terao
 	int numFases = tetoLog(nProc);
-
-	//aqui descobrimos em qual fase o processo atual começa a ouvir
-	int faseComeco = descobreFase(rankProc, raiz, nProc);
 	
 	//função para debug
 	//if (rankProc == 0)
 	//	calculaNumeros (nProc, raiz, numFases);
 
+	int faseComeco;
 	int destinoMsg;
 	int origemMsg;
 
-	//se o processo nao for a raiz, começa ouvindo
-	if (rankProc != raiz){
-		origemMsg = ( rankProc - pow2(faseComeco-1) ) % nProc;
-		if (origemMsg < 0)
-			origemMsg = nProc + origemMsg;
-		MPI_Recv (buffMsg, ni, MPI_LONG, origemMsg, 0, MPI_COMM_WORLD, &statusRecv);
-	}
+	for (int imsg = 0 ; imsg < nmsg ; imsg++){
+		//aqui descobrimos em qual fase o processo atual começa a ouvir
+		faseComeco = descobreFase(rankProc, raiz, nProc);
 
-	//envia as mensagens que tem que mandar
-	for (; faseComeco < numFases ; faseComeco++){
-		destinoMsg = (pow2(faseComeco) + rankProc) % nProc;
-		if (faseComeco == numFases - 1){
-			int distancia;
-			if (raiz <= rankProc)
-				distancia = rankProc - raiz;
+		//se o processo nao for a raiz, começa ouvindo
+		if (rankProc != raiz){
+			origemMsg = ( rankProc - pow2(faseComeco-1) ) % nProc;
+			if (origemMsg < 0)
+				origemMsg = nProc + origemMsg;
+			MPI_Recv (buffMsg, ni, MPI_LONG, origemMsg, 0, MPI_COMM_WORLD, &statusRecv);
+		}
+
+		//envia as mensagens que tem que mandar
+		for (; faseComeco < numFases ; faseComeco++){
+			destinoMsg = (pow2(faseComeco) + rankProc) % nProc;
+			if (faseComeco == numFases - 1){
+				int distancia;
+				if (raiz <= rankProc)
+					distancia = rankProc - raiz;
+				else
+					distancia = rankProc + nProc - raiz;
+
+				if (distancia + pow2(faseComeco) < nProc)
+					MPI_Ssend (buffMsg, ni, MPI_LONG, destinoMsg, 0, MPI_COMM_WORLD);
+			}
 			else
-				distancia = rankProc + nProc - raiz;;
-			if (distancia + pow2(faseComeco) < nProc)
 				MPI_Ssend (buffMsg, ni, MPI_LONG, destinoMsg, 0, MPI_COMM_WORLD);
 		}
-		else
-			MPI_Ssend (buffMsg, ni, MPI_LONG, destinoMsg, 0, MPI_COMM_WORLD);
+
+		MPI_Barrier(MPI_COMM_WORLD);
+
 	}
 
 	MPI_Barrier(MPI_COMM_WORLD);
@@ -295,8 +270,11 @@ int main (int argc, char* argv[]){
 	if (rankProc == 0){
 		chrono_stop(&cronometro);
 		double tempo = (double) chrono_gettotal(&cronometro) / (1000 * 1000 * 1000);
+		tempo *= 1000;
+		double vazao = tmsg*nmsg*(nProc-1)/tempo;
 
-		fprintf (stdout, "Tempo:	%f\n", tempo);
+		fprintf (stdout, "NP:	%d	RAIZ:	%d\n", nProc, raiz);
+		fprintf (stdout, "Tempo:	%f	Vazao:	%f\n", tempo, vazao);
 	}
 
 	MPI_Finalize();
