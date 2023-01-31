@@ -160,12 +160,12 @@ int main (int argc, char* argv[]){
 
 	if (rankProc == 0){
 		chrono_stop(&cronometro);
-		double tempoS	= (double) chrono_gettotal(&cronometro) / (1000 * 1000 * 1000);
-		double tempoMS	= tempoS * 1000;
+		double tempoMS	= (double) chrono_gettotal(&cronometro) / 1000;
+		//double tempoMS	= tempoS * 1000;
 		double vazao	= ((tmsg*nmsg)/tempoMS)*(nProc-1);
 
 		fprintf (stdout, "\nNP:	%d	RAIZ:	%d\n", nProc, raiz);
-		fprintf (stdout, "Tempo:	%f	Vazao:	%f\n", tempoS, vazao);
+		fprintf (stdout, "Tempo:	%f	Vazao:	%f\n", tempoMS, vazao);
 	}
 
 	MPI_Finalize();
