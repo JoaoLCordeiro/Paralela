@@ -121,6 +121,8 @@ TYPEMSG* CriaMsg (int numIndices){
 	return buffMsg;
 }
 
+//retorna o teto do logaritmo base 2, usado para descobrir a fase 
+//do processo e pra descobrir o numero de fases necessárias
 int tetoLog (int n){
 	double nd = n;
 	int res = 0;
@@ -133,6 +135,7 @@ int tetoLog (int n){
 	return res;
 }
 
+//funcao que descobre a fase em que o processo atual vai receber a mensagem
 int descobreFase (int rankProc, int raiz, int nProc){
 	int distancia;
 	if (rankProc >= raiz)
@@ -149,6 +152,7 @@ int descobreFase (int rankProc, int raiz, int nProc){
 	return res;
 }
 
+//funcao que retorna 2^n
 int pow2 (int n){
 	if (n == 0)
 		return 1;
@@ -161,6 +165,7 @@ int pow2 (int n){
 	}
 }
 
+//função de debug
 void calculaNumeros (int nProc, int raiz, int numFases){
 	int origemMsg, destinoMsg;
 
@@ -233,12 +238,16 @@ int main (int argc, char* argv[]){
 	int origemMsg;
 
 	for (int imsg = 0 ; imsg < nmsg ; imsg++){
+		//começamos o broadcast
+
 		//aqui descobrimos em qual fase o processo atual começa a ouvir
 		faseComeco = descobreFase(rankProc, raiz, nProc);
 
 		//se o processo nao for a raiz, começa ouvindo
 		if (rankProc != raiz){
 			origemMsg = ( rankProc - pow2(faseComeco-1) ) % nProc;
+
+			//caso a origem seja maior q o destino, o calculo dará negativo
 			if (origemMsg < 0)
 				origemMsg = nProc + origemMsg;
 			MPI_Recv (buffMsg, ni, MPI_LONG, origemMsg, 0, MPI_COMM_WORLD, &statusRecv);
@@ -247,6 +256,8 @@ int main (int argc, char* argv[]){
 		//envia as mensagens que tem que mandar
 		for (; faseComeco < numFases ; faseComeco++){
 			destinoMsg = (pow2(faseComeco) + rankProc) % nProc;
+
+			//se for a ultima fase de transmissoes, faz umas verificacoes
 			if (faseComeco == numFases - 1){
 				int distancia;
 				if (raiz <= rankProc)
@@ -254,12 +265,16 @@ int main (int argc, char* argv[]){
 				else
 					distancia = rankProc + nProc - raiz;
 
+				//calcula se a mensagem deve ser realmente enviada
+				//(casos onde nProc nao eh potencia de 2)
 				if (distancia + pow2(faseComeco) < nProc)
 					MPI_Ssend (buffMsg, ni, MPI_LONG, destinoMsg, 0, MPI_COMM_WORLD);
 			}
 			else
 				MPI_Ssend (buffMsg, ni, MPI_LONG, destinoMsg, 0, MPI_COMM_WORLD);
 		}
+
+		//terminamos o broadcast
 
 		MPI_Barrier(MPI_COMM_WORLD);
 
