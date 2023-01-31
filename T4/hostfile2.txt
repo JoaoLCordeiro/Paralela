@@ -1,2 +1,2 @@
-i36 slots=4
-i35 slots=4
+i31 slots=4
+i29 slots=4

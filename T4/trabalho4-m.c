@@ -269,12 +269,12 @@ int main (int argc, char* argv[]){
 
 	if (rankProc == 0){
 		chrono_stop(&cronometro);
-		double tempo = (double) chrono_gettotal(&cronometro) / (1000 * 1000 * 1000);
-		tempo *= 1000;
-		double vazao = tmsg*nmsg*(nProc-1)/tempo;
+		double tempoS	= (double) chrono_gettotal(&cronometro) / (1000 * 1000 * 1000);
+		double tempoMS	= tempoS * 1000;
+		double vazao	= ((tmsg*nmsg)/tempoMS)*(nProc-1);
 
-		fprintf (stdout, "NP:	%d	RAIZ:	%d\n", nProc, raiz);
-		fprintf (stdout, "Tempo:	%f	Vazao:	%f\n", tempo, vazao);
+		fprintf (stdout, "\nNP:	%d	RAIZ:	%d\n", nProc, raiz);
+		fprintf (stdout, "Tempo:	%f	Vazao:	%f\n", tempoS, vazao);
 	}
 
 	MPI_Finalize();
