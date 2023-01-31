@@ -12,9 +12,11 @@ for ARGTAM in 8 1024 4096 16384
 do
 	echo "Mensagens de tamanho $ARGTAM" >> resultados-m.csv
 	echo "Mensagens de tamanho $ARGTAM" >> resultados-b.csv
+	echo "NMSG = $NMSG"
 	for vez in $(seq 1 10)
 	do
 		mpirun -np 8 --hostfile hostfile2.txt ./trabalho4-m "$NMSG" "$ARGTAM" -r 0 | grep 'Tempo:' | awk '{printf "%s	%s\n",$2, $4}' >> resultados-m.csv
 		mpirun -np 8 --hostfile hostfile2.txt ./trabalho4-b "$NMSG" "$ARGTAM" -r 0 | grep 'Tempo:' | awk '{printf "%s	%s\n",$2, $4}' >> resultados-b.csv
 	done
+	NMSG=$(expr $NMSG / 2)
 done
