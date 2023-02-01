@@ -1,2 +1,2 @@
-i30 slots=4
-i26 slots=4
+i24 slots=4
+i23 slots=4

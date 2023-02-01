@@ -239,7 +239,7 @@ int main (int argc, char* argv[]){
 
 	for (int imsg = 0 ; imsg < nmsg ; imsg++){
 		//começamos o broadcast
-
+	
 		//aqui descobrimos em qual fase o processo atual começa a ouvir
 		faseComeco = descobreFase(rankProc, raiz, nProc);
 
