@@ -1,2 +1,2 @@
-i24 slots=4
-i23 slots=4
+j22 slots=4
+j23 slots=4
