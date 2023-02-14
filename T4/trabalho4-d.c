@@ -324,9 +324,7 @@ void my_Bcast(TYPEMSG *buffMsg, int ni, MPI_Datatype mpi_data, int raiz, MPI_Com
 	}
 
 	// envia as mensagens que tem que mandar
-	for (; faseComeco < numFases; faseComeco++)
-	{
-		destinoMsg = (pow2(faseComeco) + rankProc) % nProc;
+	for (; faseComeco < numFases; faseCoint  rankProc) % nProc;
 		// se for a ultima fase de transmissoes, faz umas verificacoes
 		if (faseComeco == numFases - 1)
 		{
