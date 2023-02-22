@@ -1,0 +1,2 @@
+i32 slots=4
+i31 slots=4
