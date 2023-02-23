@@ -4,6 +4,8 @@
 #include <float.h>
 #include <mpi.h>
 
+#include "chrono.c"
+
 typedef struct par
 {
 	float	distancia;
@@ -14,30 +16,33 @@ MPI_Datatype	MPI_T_PAR;
 
 int nProc, rank;
 int nQ, nP, nD, k;
-float** Q;
-float** P;
-t_par** R;
+float* Q;
+float* P;
+t_par* R;
 
-
+//função que imprime as respostas na tela
 void imprimeResposta(){
 	fprintf(stdout, "\n");
 	for (int i = 0 ; i < nQ ; i++){
 		fprintf(stdout, "Respostas para a linha %d\n\n", i);
 
 		for (int j = 0 ; j < k ; j++){
-			fprintf(stdout, "Ponto:	%d	Distancia:	%f\n", R[i][j].ponto, R[i][j].distancia);
+			fprintf(stdout, "Ponto:	%d	Distancia:	%f\n", R[i*k + j].ponto, R[i*k + j].distancia);
 		}
 
 		fprintf(stdout, "\n");
 	}
 }
 
-void geraArquivoMatrizes(){
-	char* nomearqP = (char *) malloc (16*sizeof(char));
-
-	strcpy(nomearqP, "matrizP-rank");
+//função de debug: cria arquivos com dados desejados
+void geraArquivoMatrizes(t_par* menores){
 	char* num	  = (char *) malloc (2*sizeof(char));
 	sprintf(num, "%d", rank);
+
+	//matriz P
+	/*char* nomearqP = (char *) malloc (16*sizeof(char));
+
+	strcpy(nomearqP, "matrizP-rank");
 	strcat(nomearqP, num);
 	strcat(nomearqP, ".txt");
 
@@ -45,13 +50,14 @@ void geraArquivoMatrizes(){
 
 	for (int i = 0 ; i < nP ; i++){
 		for (int j = 0 ; j < nD ; j++){
-			fprintf(filematrizP, "%f	", P[i][j]);
+			fprintf(filematrizP, "%f	", P[i*nD + j]);
 		}
 		fprintf(filematrizP, "\n");
 	}
 
 	fclose(filematrizP);
 
+	//matriz Q
 	char* nomearqQ = (char *) malloc (16*sizeof(char));
 
 	strcpy(nomearqQ, "matrizQ-rank");
@@ -62,12 +68,27 @@ void geraArquivoMatrizes(){
 
 	for (int i = 0 ; i < nQ ; i++){
 		for (int j = 0 ; j < nD ; j++){
-			fprintf(filematrizQ, "%f	", Q[i][j]);
+			fprintf(filematrizQ, "%f	", Q[i*nD + j]);
 		}
 		fprintf(filematrizQ, "\n");
 	}
 
-	fclose(filematrizQ);
+	fclose(filematrizQ);*/
+
+	//menores
+	char* nomearqM = (char *) malloc (16*sizeof(char));
+
+	strcpy(nomearqM, "vetorM-rank");
+	strcat(nomearqM, num);
+	strcat(nomearqM, ".txt");
+
+	FILE* vetorM = fopen (nomearqM,"w+");
+
+	for (int i = 0 ; i < k ; i++){
+		fprintf(vetorM, "Ponto:	%d	Distancia:	%f\n", menores[i].ponto ,menores[i].distancia);
+	}
+
+	fclose(vetorM);
 }
 
 //verifica o número de entradas do programa
@@ -79,26 +100,28 @@ void verificaEntradas(int argc, char *argv[]){
 }
 
 //gera um conjunto de dados no ponteiro C com nc elementos de D dimensoes
-void geraConjuntoDeDados(float** C, int nc, int D ){
+void geraConjuntoDeDados(float* C, int nc, int D ){
 	for (int i = 0 ; i < nc ; i++)
 		for (int j = 0 ; j < D ; j++)
-			C[i][j] = (float) rand();
+			C[i*D + j] = (float) rand();
 }
 
-//envia o pedaço da matriz que o processo destino vai usar
+//envia o pedaço da matriz que o processo destino vai usar (da linha "comeco" até a "fim")
 void enviaParteMatrizP (int destino, int comeco, int fim){
 	for (int i = comeco ; i < fim ; i++)
-		MPI_Send (P[i], nD, MPI_FLOAT, destino, 0, MPI_COMM_WORLD);
+		MPI_Send (&(P[i*nD]), nD, MPI_FLOAT, destino, 0, MPI_COMM_WORLD);
 }
 
+//recebe um pedaço da matriz P (da linha "começo" até a "fim")
 void recebeParteMatrizP (int comeco, int fim){
 	MPI_Status statusRecv;
 
 	for (int i = comeco ; i < fim ; i++){
-		MPI_Recv (P[i], nD, MPI_FLOAT, 0, 0, MPI_COMM_WORLD, &statusRecv);
+		MPI_Recv (&(P[i*nD]), nD, MPI_FLOAT, 0, 0, MPI_COMM_WORLD, &statusRecv);
 	}
 }
 
+//retorna o quadrado do módulo da diferença de a e b
 float modDiffSqr (float a, float b){
 	float res;
 	if (a < b)
@@ -109,12 +132,8 @@ float modDiffSqr (float a, float b){
 	return res*res;
 }
 
+//cria um vetor com as menores distâncias e seus pontos
 void adicionaMenor (float dist, int ponto, int comeco, t_par *vetor){
-	if (ponto - comeco < k){
-		vetor[ponto-comeco].distancia	= dist;
-		vetor[ponto-comeco].ponto		= ponto;
-	}
-
 	int i = -1;
 	while ((i+1 < k) && (dist < vetor[i+1].distancia)){
 		i++;
@@ -128,6 +147,7 @@ void adicionaMenor (float dist, int ponto, int comeco, t_par *vetor){
 	}	
 }
 
+//função de debug: imprime o vetor de menores distancias
 void imprimeMenores (t_par *menores_dist){
 	int tam = k*nProc;
 
@@ -135,30 +155,41 @@ void imprimeMenores (t_par *menores_dist){
 		fprintf (stdout, "%f\n", menores_dist[i].distancia);
 }
 
+//função que inicializa o vetor menores_dist com valores gigantes
+void encheInf (t_par* menores_dist){
+	for (int i = 0 ; i < k ; i++)
+		menores_dist[i].distancia = FLT_MAX;
+}
+
+//calcula os pontos de P mais próximos do ponto da linhaQ
 void calculaPontoQ (int linhaQ, int comecoP, int fimP){
 	MPI_Status statusRecv;
 
 	//manda a linha do Q para os outros processos
 	if (rank == 0)
 		for (int i = 1 ; i < nProc ; i++)
-			MPI_Send (Q[linhaQ], nD, MPI_FLOAT, i, 0, MPI_COMM_WORLD);
+			MPI_Send (&(Q[linhaQ*nD]), nD, MPI_FLOAT, i, 0, MPI_COMM_WORLD);
 	else
-		MPI_Recv (Q[linhaQ], nD, MPI_FLOAT, 0, 0, MPI_COMM_WORLD, &statusRecv);
+		MPI_Recv (&(Q[linhaQ*nD]), nD, MPI_FLOAT, 0, 0, MPI_COMM_WORLD, &statusRecv);
 
 
 	//um vetor que vai guardando as menores distancias e seus índices
 	t_par *menores_dist;
 	if (rank == 0)
-		menores_dist = (t_par *) calloc (k*nProc,sizeof(t_par));
+		menores_dist = (t_par *) calloc (k*nProc,sizeof(t_par));	//o raiz irá armazenar todas as k menores distâncias dos nProc
 	else
 		menores_dist = (t_par *) calloc (k,sizeof(t_par));
 
+	//coloca valores grandes inicialmente no vetor
+	encheInf (menores_dist);
+
+	//calcula as distâncias e separa as k menores
 	for (int i = comecoP ; i < fimP ; i++){
 		float distancia = 0;
 		
 		//calculo da distancia
-		for (int j = 0 ; j < k ; j++){
-			distancia += modDiffSqr(Q[linhaQ][j], P[i][j]);
+		for (int j = 0 ; j < k ; j++){									//TROCAR
+			distancia += modDiffSqr(Q[linhaQ*nD + j], P[i*nD + j]);
 		}
 
 		adicionaMenor (distancia, i, comecoP, menores_dist);
@@ -174,35 +205,37 @@ void calculaPontoQ (int linhaQ, int comecoP, int fimP){
 		MPI_Send (menores_dist, k, MPI_T_PAR, 0, 0, MPI_COMM_WORLD);
 	}
 
+	//espera a sincronização de processos
 	MPI_Barrier(MPI_COMM_WORLD); 
 
-	//pega apenas os k menores
+	//pega apenas os k menores entre todos os processos
 	if (rank == 0){
+		//a cada iteração, seleciona um ponto
 		for (int i = 0 ; i < k ; i++){
 			float menor 		= menores_dist[0].distancia;
 			int indice_menor	= 0;
 
 			for (int j = 1 ; j < k * nProc ; j++){
-				if (menores_dist[j].distancia < menor){
+				if ((menores_dist[j].distancia != FLT_MAX) && (menores_dist[j].distancia < menor)){
 					menor			= menores_dist[j].distancia;
 					indice_menor	= j;
 				}
 			}
 
-			R[linhaQ][i].distancia	= menor;
-			R[linhaQ][i].ponto		= menores_dist[indice_menor].ponto;
+			R[linhaQ*k + i].distancia	= menor;
+			R[linhaQ*k + i].ponto		= menores_dist[indice_menor].ponto;
 
 			//tirando o que pegamos dos candidatos pros proximos menores
 			menores_dist[indice_menor].distancia = FLT_MAX;
 		}
 	}
 
+	//espera a sincronização de processos
 	MPI_Barrier(MPI_COMM_WORLD); 
-	//a partir daqui, R[linhaQ possui as resposta]
-
-	//printa na tela para o ponto linhaQ
+	//a partir daqui, R[linhaQ possui as respostas para a linhaQ]
 }
 
+//função que cria e commita o tipo MPI_T_PAR que será usado nos cálculos
 void criaMPIPar (){
 	const int 			array_of_blocklengths[] 	= {1,1};
 	const MPI_Aint 		array_of_displacements[]	= {0,4};
@@ -232,21 +265,12 @@ int main (int argc, char *argv[]){
 
 	criaMPIPar();
 
-	Q = (float **) malloc (nQ * sizeof(float *));
-	P = (float **) malloc (nP * sizeof(float *));
+	Q = (float *) malloc (nQ * nD *sizeof(float));
+	P = (float *) calloc (nP * nD, sizeof(float));
 
 	if (rank == 0){
-		R = (t_par **) malloc (nQ * sizeof(t_par *));
-		for (int i = 0 ; i < nQ ; i++)
-			R[i] = (t_par *) malloc (k * sizeof(t_par));
-	}
+		R = (t_par *) malloc (nQ * k * sizeof(t_par));
 
-	for (int i = 0 ; i < nQ ; i++)
-		Q[i] = (float *) malloc (nD * sizeof(float));
-	for (int i = 0 ; i < nP ; i++)
-		P[i] = (float *) calloc (nD , sizeof(float));
-
-	if (rank == 0){
 		geraConjuntoDeDados(Q, nQ, nD);
 		geraConjuntoDeDados(P, nP, nD);
 	}
@@ -264,6 +288,7 @@ int main (int argc, char *argv[]){
 
 	//a partir daqui, cada processo possui o seu pedaço da matrizP com qual irá trabalhar
 
+	//calcula os k pontos mais próximos do ponto i de Q
 	for (int i = 0 ; i < nQ ; i++){
 		if (rank == 0)
 			fprintf(stdout, "Calculando a linha %d\n", i);
