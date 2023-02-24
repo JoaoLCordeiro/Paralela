@@ -4,7 +4,7 @@ make -B 2> /dev/null
 #caso não queira excluir, guarde os arquivos antigos em outro diretório
 rm resultados-a.csv resultados-b.csv resultados-c.csv resultados-d.csv 2> /dev/null
 
-##numero de elementos
+#numero de elementos
 NMSG=5000
 
 # para bloqueantes

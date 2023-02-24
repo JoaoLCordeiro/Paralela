@@ -5,6 +5,7 @@
 #include <mpi.h>
 
 #include "chrono.c"
+#include "verificaKNN.c"
 
 typedef struct par
 {
@@ -18,7 +19,9 @@ int nProc, rank;
 int nQ, nP, nD, k;
 float* Q;
 float* P;
-t_par* R;
+int* R;
+
+chronometer_t cronometro;
 
 //função que imprime as respostas na tela
 void imprimeResposta(){
@@ -27,7 +30,7 @@ void imprimeResposta(){
 		fprintf(stdout, "Respostas para a linha %d\n\n", i);
 
 		for (int j = 0 ; j < k ; j++){
-			fprintf(stdout, "Ponto:	%d	Distancia:	%f\n", R[i*k + j].ponto, R[i*k + j].distancia);
+			fprintf(stdout, "Ponto:	%d\n", R[i*k + j]);
 		}
 
 		fprintf(stdout, "\n");
@@ -188,7 +191,7 @@ void calculaPontoQ (int linhaQ, int comecoP, int fimP){
 		float distancia = 0;
 		
 		//calculo da distancia
-		for (int j = 0 ; j < k ; j++){									//TROCAR
+		for (int j = 0 ; j < nD ; j++){
 			distancia += modDiffSqr(Q[linhaQ*nD + j], P[i*nD + j]);
 		}
 
@@ -222,8 +225,7 @@ void calculaPontoQ (int linhaQ, int comecoP, int fimP){
 				}
 			}
 
-			R[linhaQ*k + i].distancia	= menor;
-			R[linhaQ*k + i].ponto		= menores_dist[indice_menor].ponto;
+			R[linhaQ*k + i]		= menores_dist[indice_menor].ponto;
 
 			//tirando o que pegamos dos candidatos pros proximos menores
 			menores_dist[indice_menor].distancia = FLT_MAX;
@@ -248,6 +250,18 @@ void criaMPIPar (){
 		fprintf(stderr, "Erro:	Não foi possível commitar o tipo MPI_T_PAR\n");
 }
 
+//função que calcula o knn
+void KNN (float* mQ, int nmQ, float* mP, int nmP, int D, int nk){
+	//como todos os argumentos são globais, são passados aqui apenas para adequar à expecificação
+
+	//calcula os k pontos mais próximos do ponto i de Q
+	for (int i = 0 ; i < nQ ; i++){
+		if (rank == 0)
+			fprintf(stdout, "Calculando a linha %d\n", i);
+		calculaPontoQ (i, (rank*nP)/nProc, ((rank+1)*nP)/nProc);
+	}
+}
+
 int main (int argc, char *argv[]){
 
 	verificaEntradas(argc, argv);
@@ -268,8 +282,9 @@ int main (int argc, char *argv[]){
 	Q = (float *) malloc (nQ * nD *sizeof(float));
 	P = (float *) calloc (nP * nD, sizeof(float));
 
+	//alocamos a matriz resposta e geramos os conjuntos Q e P
 	if (rank == 0){
-		R = (t_par *) malloc (nQ * k * sizeof(t_par));
+		R = (int *) malloc (nQ * k * sizeof(int));
 
 		geraConjuntoDeDados(Q, nQ, nD);
 		geraConjuntoDeDados(P, nP, nD);
@@ -278,6 +293,13 @@ int main (int argc, char *argv[]){
 	//espera o rank = 0 gerar as matrizes
 	MPI_Barrier(MPI_COMM_WORLD);
 
+	//começa o cronometro
+	if (rank == 0){
+		chrono_reset(&cronometro);
+		chrono_start(&cronometro);
+	}
+
+	//dividimos a matriz P em pedaços e mandamos um para cada processo
 	if (rank == 0)
 		for (int i = 1 ; i < nProc ; i++)
 			enviaParteMatrizP (i, (i*nP)/nProc, ((i+1)*nP)/nProc);
@@ -288,15 +310,20 @@ int main (int argc, char *argv[]){
 
 	//a partir daqui, cada processo possui o seu pedaço da matrizP com qual irá trabalhar
 
-	//calcula os k pontos mais próximos do ponto i de Q
-	for (int i = 0 ; i < nQ ; i++){
-		if (rank == 0)
-			fprintf(stdout, "Calculando a linha %d\n", i);
-		calculaPontoQ (i, (rank*nP)/nProc, ((rank+1)*nP)/nProc);
-	}
+	//calcula o KNN
+	KNN(Q, nQ, P, nP, nD, k);
 
-	if (rank == 0)
+	if (rank == 0){
+		chrono_stop(&cronometro);
+		double tempo	= (double) chrono_gettotal(&cronometro) / (1000*1000*1000);
+
+		verificaKNN(Q, nQ, P, nP, nD, k, R);
+
+		fprintf (stdout, "\nNP:	%d\n", nProc);
+		fprintf (stdout, "\nTempo:	%f\n", tempo);
+
 		imprimeResposta();
+	}
 
 	MPI_Finalize();
 
