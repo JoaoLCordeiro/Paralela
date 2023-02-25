@@ -37,69 +37,17 @@ void imprimeResposta(){
 	}
 }
 
-//função de debug: cria arquivos com dados desejados
-void geraArquivoMatrizes(t_par* menores){
-	char* num	  = (char *) malloc (2*sizeof(char));
-	sprintf(num, "%d", rank);
-
-	//matriz P
-	/*char* nomearqP = (char *) malloc (16*sizeof(char));
-
-	strcpy(nomearqP, "matrizP-rank");
-	strcat(nomearqP, num);
-	strcat(nomearqP, ".txt");
-
-	FILE* filematrizP = fopen (nomearqP,"w+");
-
-	for (int i = 0 ; i < nP ; i++){
-		for (int j = 0 ; j < nD ; j++){
-			fprintf(filematrizP, "%f	", P[i*nD + j]);
-		}
-		fprintf(filematrizP, "\n");
-	}
-
-	fclose(filematrizP);
-
-	//matriz Q
-	char* nomearqQ = (char *) malloc (16*sizeof(char));
-
-	strcpy(nomearqQ, "matrizQ-rank");
-	strcat(nomearqQ, num);
-	strcat(nomearqQ, ".txt");
-
-	FILE* filematrizQ = fopen (nomearqQ,"w+");
-
-	for (int i = 0 ; i < nQ ; i++){
-		for (int j = 0 ; j < nD ; j++){
-			fprintf(filematrizQ, "%f	", Q[i*nD + j]);
-		}
-		fprintf(filematrizQ, "\n");
-	}
-
-	fclose(filematrizQ);*/
-
-	//menores
-	char* nomearqM = (char *) malloc (16*sizeof(char));
-
-	strcpy(nomearqM, "vetorM-rank");
-	strcat(nomearqM, num);
-	strcat(nomearqM, ".txt");
-
-	FILE* vetorM = fopen (nomearqM,"w+");
-
-	for (int i = 0 ; i < k ; i++){
-		fprintf(vetorM, "Ponto:	%d	Distancia:	%f\n", menores[i].ponto ,menores[i].distancia);
-	}
-
-	fclose(vetorM);
-}
-
 //verifica o número de entradas do programa
-void verificaEntradas(int argc, char *argv[]){
+void trataEntradas(int argc, char *argv[]){
 	if (argc != 5){
 		fprintf(stderr, "Erro:	Número incorreto de argumentos. Tente:\n./trabalho5 <nq> <np> <nD> <k>\n");
 		exit(1);
 	}
+	
+	nQ	= atoi(argv[1]);
+	nP	= atoi(argv[2]);
+	nD	= atoi(argv[3]);
+	k	= atoi(argv[4]);
 }
 
 //gera um conjunto de dados no ponteiro C com nc elementos de D dimensoes
@@ -150,14 +98,6 @@ void adicionaMenor (float dist, int ponto, int comeco, t_par *vetor){
 	}	
 }
 
-//função de debug: imprime o vetor de menores distancias
-void imprimeMenores (t_par *menores_dist){
-	int tam = k*nProc;
-
-	for (int i = 0 ; i < tam ; i++)
-		fprintf (stdout, "%f\n", menores_dist[i].distancia);
-}
-
 //função que inicializa o vetor menores_dist com valores gigantes
 void encheInf (t_par* menores_dist){
 	for (int i = 0 ; i < k ; i++)
@@ -179,9 +119,9 @@ void calculaPontoQ (int linhaQ, int comecoP, int fimP){
 	//um vetor que vai guardando as menores distancias e seus índices
 	t_par *menores_dist;
 	if (rank == 0)
-		menores_dist = (t_par *) calloc (k*nProc,sizeof(t_par));	//o raiz irá armazenar todas as k menores distâncias dos nProc
+		menores_dist = (t_par *) malloc (k * nProc * sizeof(t_par));	//o raiz irá armazenar todas as k menores distâncias dos nProc
 	else
-		menores_dist = (t_par *) calloc (k,sizeof(t_par));
+		menores_dist = (t_par *) malloc (k * sizeof(t_par));
 
 	//coloca valores grandes inicialmente no vetor
 	encheInf (menores_dist);
@@ -264,11 +204,7 @@ void KNN (float* mQ, int nmQ, float* mP, int nmP, int D, int nk){
 
 int main (int argc, char *argv[]){
 
-	verificaEntradas(argc, argv);
-	nQ	= atoi(argv[1]);
-	nP	= atoi(argv[2]);
-	nD	= atoi(argv[3]);
-	k	= atoi(argv[4]);
+	trataEntradas(argc, argv);
 
 	//inicializando o gerador de números aleatórios
 	srand(777);
@@ -279,8 +215,8 @@ int main (int argc, char *argv[]){
 
 	criaMPIPar();
 
-	Q = (float *) malloc (nQ * nD *sizeof(float));
-	P = (float *) calloc (nP * nD, sizeof(float));
+	Q = (float *) malloc (nQ * nD * sizeof(float));
+	P = (float *) malloc (nP * nD * sizeof(float));
 
 	//alocamos a matriz resposta e geramos os conjuntos Q e P
 	if (rank == 0){
